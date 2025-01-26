@@ -1,7 +1,7 @@
 Extension { #name : #Character }
 
 { #category : #'*GtFontExplorer' }
-Character >> glyphPreviewInFont: aString [
+Character >> glyphPreviewInFont: aString spawnFont: aBoolean [
 	^ BrFrame new
 		size: 50 @ 50;
 		border: (BlBorder paint: Color veryLightGray width: 1);
@@ -19,10 +19,13 @@ Character >> glyphPreviewInFont: aString [
 				when: BlClickEvent
 					do: [ :aBlClickEvent | 
 						aBlClickEvent consumed: true.
-						aBlClickEvent modifiers = BlKeyModifiers alt
-							ifTrue: [ GtClipboard clipboardText: aBlClickEvent currentTarget text asString ].
-						aBlClickEvent modifiers = BlKeyModifiers new
-							ifTrue: [ aBlClickEvent currentTarget phlow spawnObject: self ] ])
+						aBoolean
+							ifTrue: [ aBlClickEvent currentTarget phlow
+									spawnObject: (BlFont new familyName: aString) ]
+							ifFalse: [ aBlClickEvent modifiers = BlKeyModifiers alt
+									ifTrue: [ GtClipboard clipboardText: aBlClickEvent currentTarget text asString ].
+								aBlClickEvent modifiers = BlKeyModifiers new
+									ifTrue: [ aBlClickEvent currentTarget phlow spawnObject: self ] ] ])
 ]
 
 { #category : #'*GtFontExplorer' }
@@ -36,7 +39,7 @@ Character >> gtLargePreviewFor: aView context: aContext [
 		priority: 15;
 		in: [ :editor | 
 			font
-				ifNil: [ editor glamorousCodeFontAndSize ]
+				ifNil: [ editor glamorousCodeFont ]
 				ifNotNil: [ editor fontName: font familyName ].
 			editor ];
 		fontSize: 500;
@@ -58,4 +61,43 @@ Character >> gtPreviewInFontFor: aView context: aContext [
 		fontName: font familyName;
 		fontSize: 30;
 		text: [ self ]
+]
+
+{ #category : #'*GtFontExplorer' }
+Character >> gtSupportedFontsFor: aView [
+	<gtView>
+	| allFonts |
+	allFonts := (self allSuportedFontsForCharacter
+			collect: [ :each | 
+				| split |
+				split := each splitOn: '|'.
+				split first ifEmpty: [ split second ] ]) sorted.
+	^ aView explicit
+		title: 'Supported Fonts';
+		priority: 50;
+		stencil: [ | aFontStream glyphElemenDimension listElement |
+			aFontStream := allFonts asAsyncStream.
+			glyphElemenDimension := 50.
+			listElement := BrSimpleList new matchParent.
+			listElement
+				enqueueTask: [ | glyphsPerRow |
+					glyphsPerRow := listElement width // glyphElemenDimension.
+					aFontStream := aFontStream chunks: glyphsPerRow.
+					aFontStream := (aFontStream
+							collect: [ :someFonts | 
+								[ | grid |
+								grid := BrHorizontalGrid new
+										height: glyphElemenDimension;
+										hFitContent;
+										columnCount: glyphsPerRow.
+								grid
+									addChildren: (someFonts collect: [ :aFont | self glyphPreviewInFont: aFont spawnFont: true ]).
+								grid ] asAsyncFuture asAsyncStream ]) asAsyncStream flatten.
+					listElement
+						itemsProvider: (BrStreamItemsProvider new
+								preloadAmount: 50;
+								stream: aFontStream;
+								yourself);
+						stencil: #yourself ] asBlTask.
+			listElement ]
 ]

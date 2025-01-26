@@ -82,6 +82,42 @@ BlFont class >> getAllSystemFonts [
 ]
 
 { #category : #'*GtFontExplorer' }
+BlFont >> gtDefinedCharactersFor: aView [
+	<gtView>
+	^ aView explicit
+		title: 'Defined Characters';
+		stencil: [ | aCharacterStream ascendingCodePoints glyphElemenDimension listElement |
+			ascendingCodePoints := self codePointsDefinedInFont.
+			aCharacterStream := ascendingCodePoints asAsyncStream.
+			glyphElemenDimension := 50.
+			listElement := BrSimpleList new matchParent.
+			listElement
+				enqueueTask: [ | glyphsPerRow |
+					glyphsPerRow := listElement width // glyphElemenDimension.
+					aCharacterStream := aCharacterStream chunks: glyphsPerRow.
+					aCharacterStream := (aCharacterStream
+							collect: [ :decimalCodePoints | 
+								[ | grid |
+								grid := BrHorizontalGrid new
+										height: glyphElemenDimension;
+										hFitContent;
+										columnCount: glyphsPerRow.
+								grid
+									addChildren: (decimalCodePoints
+											collect: [ :aDecimalCodePoint | 
+												(UnicodeCharacterData database at: aDecimalCodePoint) character
+													glyphPreviewInFont: self familyName spawnFont: false ]).
+								grid ] asAsyncFuture asAsyncStream ]) asAsyncStream flatten.
+					listElement
+						itemsProvider: (BrStreamItemsProvider new
+								preloadAmount: 50;
+								stream: aCharacterStream;
+								yourself);
+						stencil: #yourself ] asBlTask.
+			listElement ]
+]
+
+{ #category : #'*GtFontExplorer' }
 BlFont >> gtDetailedInfoFor: aView [
 	"<gtView>"
 	self flag: #TODO. "Do we need this? Need to clean this up more and take into account fonts in GT directory and how to get to proper font file"
@@ -107,17 +143,18 @@ BlFont >> gtDetailedInfoFor: aView [
 ]
 
 { #category : #'*GtFontExplorer' }
-BlFont >> gtEmojisFor: aView [
-	"<gtView>"
-	self flag: #TODO. "Should re-think this view, use only for fonts that support emojis"
+BlFont class >> gtEmojisFor: aView [
+	<gtClassView>
+	<gtView>
 	^ aView explicit
 		title: 'Emojis';
+		priority: 10;
 		stencil: [ | aCharacterStream ascendingCodePoints emojiIndices glyphElemenDimension listElement smileyIndex |
 			smileyIndex := Number readFrom: '1f600' base: 16.
 			ascendingCodePoints := UnicodeCharacterData database keys sorted.
 			emojiIndices := {smileyIndex}
 					, (ascendingCodePoints splitOn: smileyIndex) second.
-			aCharacterStream := emojiIndices asAsyncStream.	"first: 1500"
+			aCharacterStream := emojiIndices asAsyncStream.
 			glyphElemenDimension := 50.
 			listElement := BrSimpleList new matchParent.
 			listElement
@@ -135,16 +172,14 @@ BlFont >> gtEmojisFor: aView [
 									addChildren: (decimalCodePoints
 											collect: [ :aDecimalCodePoint | 
 												(UnicodeCharacterData database at: aDecimalCodePoint) character
-													glyphPreviewInFont: self familyName ]).
+													glyphPreviewInFont: 'Source Sans Pro' spawnFont: false ]).
 								grid ] asAsyncFuture asAsyncStream ]) asAsyncStream flatten.
 					listElement
 						itemsProvider: (BrStreamItemsProvider new
 								preloadAmount: 50;
 								stream: aCharacterStream;
 								yourself);
-						stencil: #yourself;
-						when: BrItemsProviderDoneEvent do: [ :anEvent | self inform: 'All Glyphs have been fetched' ] ]
-						asBlTask.
+						stencil: #yourself ] asBlTask.
 			listElement ]
 ]
 
@@ -235,37 +270,12 @@ BlFont >> gtSpotterUnicodeCharacterDatabaseFor: aSearch [
 ]
 
 { #category : #'*GtFontExplorer' }
-BlFont >> gtSupportedCharactersFor: aView [
-	<gtView>
-	^ aView explicit
-		title: 'Defined Characters';
-		stencil: [ | aCharacterStream ascendingCodePoints glyphElemenDimension listElement |
-			ascendingCodePoints := self codePointsDefinedInFont.
-			aCharacterStream := ascendingCodePoints asAsyncStream.
-			glyphElemenDimension := 50.
-			listElement := BrSimpleList new matchParent.
-			listElement
-				enqueueTask: [ | glyphsPerRow |
-					glyphsPerRow := listElement width // glyphElemenDimension.
-					aCharacterStream := aCharacterStream chunks: glyphsPerRow.
-					aCharacterStream := (aCharacterStream
-							collect: [ :decimalCodePoints | 
-								[ | grid |
-								grid := BrHorizontalGrid new
-										height: glyphElemenDimension;
-										hFitContent;
-										columnCount: glyphsPerRow.
-								grid
-									addChildren: (decimalCodePoints
-											collect: [ :aDecimalCodePoint | 
-												(UnicodeCharacterData database at: aDecimalCodePoint) character
-													glyphPreviewInFont: self familyName ]).
-								grid ] asAsyncFuture asAsyncStream ]) asAsyncStream flatten.
-					listElement
-						itemsProvider: (BrStreamItemsProvider new
-								preloadAmount: 50;
-								stream: aCharacterStream;
-								yourself);
-						stencil: #yourself ] asBlTask.
-			listElement ]
+BlFont >> printOn: aStream [
+	super printOn: aStream.
+	aStream
+		nextPutAll: ' (';
+		nextPutAll: self familyName;
+		nextPutAll: ' [';
+		nextPutAll: self codePointsDefinedInFont size asString;
+		nextPutAll: ' glyphs])'
 ]
