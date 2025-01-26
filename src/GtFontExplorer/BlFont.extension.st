@@ -2,31 +2,46 @@ Extension { #name : #BlFont }
 
 { #category : #'*GtFontExplorer' }
 BlFont class >> allFontsSorted [
-	^ (self fontsInSystem , self fontsInGtDirectory
-		collect: [ :each | each splitOn: '|' ])
+	| allFonts |
+	allFonts := self fontsInSystem , self fontsInGtDirectory
+			collect: [ :each | each splitOn: '|' ].
+	^ allFonts
 		sorted: [ :a :b | 
-			a first
-				ifEmpty: [ b first ifEmpty: [ a second < b second ] ifNotEmpty: [ false ] ]
-				ifNotEmpty: [ a first < b first ] ]
+			| aName bName |
+			aName := a first ifEmpty: [ a third ].
+			bName := b first ifEmpty: [ b third ].
+			aName = bName ifTrue: [ a second < b second ] ifFalse: [ aName < bName ] ]
 ]
 
 { #category : #'*GtFontExplorer' }
 BlFont >> codePointsDefinedInFont [
-
-"^ OSPlatform current isLinux
-		ifTrue: [ (GtExternalProcessBuilder new
-				command: 'fc-query';
-				args: {'--format=''%{charset}\n'''. self familyName};
-				pipeStdout;
-				pipeStderr;
-				spawn) waitWithOutput stdout lines
-				collect: [ :each | 
-					((each splitOn: $:) collect: #trimBoth)
-						in: [ :fields | 
-							{'file' -> fields first.
-								'name' -> fields second.
-								'style' -> fields third} asDictionary ] ] ]
-		ifFalse: [ #() ]"
+	| charsets codepoints font output |
+	font := self class allFontsSorted
+			detect: [ :each | (each first ifEmpty: [ each third ]) = self familyName ]
+			ifFound: #second
+			ifNone: [ self familyName ].
+	output := OSPlatform current isLinux
+			ifTrue: [ (GtExternalProcessBuilder new
+					command: 'fc-query';
+					args: {'--format=%{charset}\n'.
+							font};
+					pipeStdout;
+					pipeStderr;
+					spawn) waitWithOutput stdout lines ]
+			ifFalse: [ #() ].
+	charsets := output
+			ifNotEmpty: [ :notEmpty | notEmpty flatCollect: [ :each | each splitOn: ' ' ] ].
+	codepoints := (charsets
+			collect: [ :each | 
+				| range |
+				range := each splitOn: '-'.
+				range size = 1
+					ifTrue: [ {Number readFrom: range first base: 16} ]
+					ifFalse: [ ((Number readFrom: range first base: 16)
+							to: (Number readFrom: range second base: 16)) asArray ] ])
+			flatCollectAsSet: #yourself.
+	^ (UnicodeCharacterData database keys intersection: codepoints) asArray
+		sorted: #yourself ascending
 ]
 
 { #category : #'*GtFontExplorer' }
@@ -47,7 +62,7 @@ BlFont class >> fontsInSystem [
 BlFont class >> getAllGtFonts [
 	^ (GtExternalProcessBuilder new
 		command: 'fc-scan';
-		args: {'--format=%{fullname}|%{file}\n'.
+		args: {'--format=%{fullname}|%{file}|%{family}|%{charset}\n'.
 				'.' asFileReference asAbsolute pathString};
 		pipeStdout;
 		pipeStderr;
@@ -58,7 +73,7 @@ BlFont class >> getAllGtFonts [
 BlFont class >> getAllSystemFonts [
 	^ (GtExternalProcessBuilder new
 		command: 'fc-list';
-		args: {'--format=%{fullname}|%{file}\n'};
+		args: {'--format=%{fullname}|%{file}|%{family}|%{charset}\n'};
 		pipeStdout;
 		pipeStderr;
 		spawn) waitWithOutput stdout lines
@@ -66,7 +81,8 @@ BlFont class >> getAllSystemFonts [
 
 { #category : #'*GtFontExplorer' }
 BlFont >> gtDetailedInfoFor: aView [
-	<gtView>
+	"<gtView>"
+	self flag: #TODO. "Do we need this? Need to clean this up more and take into account fonts in GT directory and how to get to proper font file"
 	^ ((OSPlatform current isLinux
 		ifTrue: [ | details output |
 			output := (GtExternalProcessBuilder new
@@ -90,7 +106,8 @@ BlFont >> gtDetailedInfoFor: aView [
 
 { #category : #'*GtFontExplorer' }
 BlFont >> gtEmojisFor: aView [
-	<gtView>
+	"<gtView>"
+	self flag: #TODO. "Should re-think this view, use only for fonts that support emojis"
 	^ aView explicit
 		title: 'Emojis';
 		stencil: [ | aCharacterStream ascendingCodePoints emojiIndices glyphElemenDimension listElement smileyIndex |
@@ -139,7 +156,7 @@ BlFont class >> gtFontsInSystemFor: aView [
 		title: 'Fonts In System (' , fonts size asString , ')';
 		priority: 1;
 		items: fonts;
-		column: 'Font Name' text: #first;
+		column: 'Font Name' text: [ :each | each first ifEmpty: [ each third ] ];
 		column: 'Supported Glyphs'
 			stencil: [ :each | 
 				self flag: #TODO.	"Async fetch"
@@ -153,7 +170,7 @@ BlFont class >> gtFontsInSystemFor: aView [
 				tooltip: 'Search Fonts';
 				label: 'Fonts';
 				hidePreview;
-				valuable: [ fonts collect: [ :each | each first -> each second ] ];
+				valuable: [ fonts collect: [ :each | (each first ifEmpty: [ each third ]) -> each second ] ];
 				actOn: [ :anActOnEvent :anItem :aBrButton | 
 					anActOnEvent beActed.
 					aBrButton phlow spawnObject: (BlFont new familyName: anItem key).
@@ -174,44 +191,6 @@ BlFont >> gtInfoFor: aView [
 	 } asOrderedDictionary gtItemsFor: aView)
 			title: 'Info';
 			priority: 7
-]
-
-{ #category : #'*GtFontExplorer' }
-BlFont >> gtLettersFor: aView [
-	<gtView>
-	^ aView explicit
-		title: 'Glyphs Supported';
-		stencil: [ | aCharacterStream ascendingCodePoints  glyphElemenDimension listElement  |
-			ascendingCodePoints := self codePointsDefinedInFont.
-			aCharacterStream := ascendingCodePoints asAsyncStream.
-			glyphElemenDimension := 50.
-			listElement := BrSimpleList new matchParent.
-			listElement
-				enqueueTask: [ | glyphsPerRow |
-					glyphsPerRow := listElement width // glyphElemenDimension.
-					aCharacterStream := aCharacterStream chunks: glyphsPerRow.	" 50 rows at once"
-					aCharacterStream := (aCharacterStream
-							collect: [ :decimalCodePoints | 
-								[ | grid |
-								grid := BrHorizontalGrid new
-										height: glyphElemenDimension;
-										hFitContent;
-										columnCount: glyphsPerRow.
-								grid
-									addChildren: (decimalCodePoints
-											collect: [ :aDecimalCodePoint | 
-												(UnicodeCharacterData database at: aDecimalCodePoint) character
-													glyphPreviewInFont: self familyName ]).
-								grid ] asAsyncFuture asAsyncStream ]) asAsyncStream flatten.
-					listElement
-						itemsProvider: (BrStreamItemsProvider new
-								preloadAmount: 50;
-								stream: aCharacterStream;
-								yourself);
-						stencil: #yourself;
-						when: BrItemsProviderDoneEvent do: [ :anEvent | self inform: 'All Glyphs have been fetched' ] ]
-						asBlTask.
-			listElement ]
 ]
 
 { #category : #'*GtFontExplorer' }
@@ -240,12 +219,44 @@ BlFont >> gtSpotterUnicodeCharacterDatabaseFor: aSearch [
 		title: 'Unicode character database';
 		items: [ UnicodeCharacterData database values sorted ];
 		itemName: [ :each | each printString ];
-		send: [ :aRawObject :aStep :thisSearch | 
-			GtPhlowEmptyView new textEditor
-				title: 'Preview';
-				priority: 10;
-				fontName: self familyName;
-				fontSize: 64;
-				text: [ aRawObject character ] ];
+		send: [ :aRawObject :aStep :thisSearch | aRawObject character ];
 		filterBySubstring
+]
+
+{ #category : #'*GtFontExplorer' }
+BlFont >> gtSupportedCharactersFor: aView [
+	<gtView>
+	^ aView explicit
+		title: 'Supported Characters';
+		stencil: [ | aCharacterStream ascendingCodePoints  glyphElemenDimension listElement  |
+			ascendingCodePoints := self codePointsDefinedInFont.
+			aCharacterStream := ascendingCodePoints asAsyncStream.
+			glyphElemenDimension := 50.
+			listElement := BrSimpleList new matchParent.
+			listElement
+				enqueueTask: [ | glyphsPerRow |
+					glyphsPerRow := listElement width // glyphElemenDimension.
+					aCharacterStream := aCharacterStream chunks: glyphsPerRow.
+					aCharacterStream := (aCharacterStream
+							collect: [ :decimalCodePoints | 
+								[ | grid |
+								grid := BrHorizontalGrid new
+										height: glyphElemenDimension;
+										hFitContent;
+										columnCount: glyphsPerRow.
+								grid
+									addChildren: (decimalCodePoints
+											collect: [ :aDecimalCodePoint | 
+												(UnicodeCharacterData database at: aDecimalCodePoint) character
+													glyphPreviewInFont: self familyName ]).
+								grid ] asAsyncFuture asAsyncStream ]) asAsyncStream flatten.
+					listElement
+						itemsProvider: (BrStreamItemsProvider new
+								preloadAmount: 50;
+								stream: aCharacterStream;
+								yourself);
+						stencil: #yourself;
+						when: BrItemsProviderDoneEvent do: [ :anEvent | self inform: 'All Glyphs have been fetched' ] ]
+						asBlTask.
+			listElement ]
 ]
