@@ -3,6 +3,7 @@ Extension { #name : #BlFont }
 { #category : #'*GtFontExplorer' }
 BlFont class >> allFontsSorted [
 	| allFonts |
+	self flag: #TODO.	"Parse into domain objects. Useful for search display, custom views and keeping code clean."
 	^ AllFonts
 		ifNil: [ allFonts := self fontsInSystem , self fontsInGtDirectory
 					collect: [ :each | each splitOn: '|' ].
@@ -41,8 +42,7 @@ BlFont >> codePointsDefinedInFont [
 					ifFalse: [ ((Number readFrom: range first base: 16)
 							to: (Number readFrom: range second base: 16)) asArray ] ])
 			flatCollectAsSet: #yourself.
-	^ (UnicodeCharacterData database keys intersection: codepoints) asArray
-		sorted: #yourself ascending
+	^ codepoints sorted
 ]
 
 { #category : #'*GtFontExplorer' }
@@ -81,6 +81,14 @@ BlFont class >> getAllSystemFonts [
 ]
 
 { #category : #'*GtFontExplorer' }
+BlFont >> gtCopyFontNameFor: anAction [
+	<gtAction>
+	^ anAction button
+		label: 'Copy Font Name';
+		action: [ :aBrButton :aBrTab :aBrButtonModel :aBlClickEvent | GtClipboard clipboardText: $' asString  , self familyName , $' asString ]
+]
+
+{ #category : #'*GtFontExplorer' }
 BlFont >> gtDefinedCharactersFor: aView [
 	<gtView>
 	^ aView explicit
@@ -104,7 +112,7 @@ BlFont >> gtDefinedCharactersFor: aView [
 								grid
 									addChildren: (decimalCodePoints
 											collect: [ :aDecimalCodePoint | 
-												(UnicodeCharacterData database at: aDecimalCodePoint) character
+												(Character value: aDecimalCodePoint)
 													glyphPreviewInFont: self familyName
 													spawnFont: false ]).
 								grid ] asAsyncFuture asAsyncStream ]) asAsyncStream flatten.
