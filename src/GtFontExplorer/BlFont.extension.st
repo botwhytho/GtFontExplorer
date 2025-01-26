@@ -3,7 +3,6 @@ Extension { #name : #BlFont }
 { #category : #'*GtFontExplorer' }
 BlFont class >> allFontsSorted [
 	| allFonts |
-	self flag: #TODO. "Compile class sot at class/baseline startup"
 	^ AllFonts
 		ifNil: [ allFonts := self fontsInSystem , self fontsInGtDirectory
 					collect: [ :each | each splitOn: '|' ].
