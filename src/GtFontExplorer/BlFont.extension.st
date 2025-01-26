@@ -3,14 +3,16 @@ Extension { #name : #BlFont }
 { #category : #'*GtFontExplorer' }
 BlFont class >> allFontsSorted [
 	| allFonts |
-	allFonts := self fontsInSystem , self fontsInGtDirectory
-			collect: [ :each | each splitOn: '|' ].
-	^ allFonts
-		sorted: [ :a :b | 
-			| aName bName |
-			aName := a first ifEmpty: [ a third ].
-			bName := b first ifEmpty: [ b third ].
-			aName = bName ifTrue: [ a second < b second ] ifFalse: [ aName < bName ] ]
+	self flag: #TODO. "Compile class sot at class/baseline startup"
+	^ AllFonts
+		ifNil: [ allFonts := self fontsInSystem , self fontsInGtDirectory
+					collect: [ :each | each splitOn: '|' ].
+			AllFonts := allFonts
+					sorted: [ :a :b | 
+						| aName bName |
+						aName := a first ifEmpty: [ a third ].
+						bName := b first ifEmpty: [ b third ].
+						aName = bName ifTrue: [ a second < b second ] ifFalse: [ aName < bName ] ] ]
 ]
 
 { #category : #'*GtFontExplorer' }
@@ -157,10 +159,8 @@ BlFont class >> gtFontsInSystemFor: aView [
 		priority: 1;
 		items: fonts;
 		column: 'Font Name' text: [ :each | each first ifEmpty: [ each third ] ];
-		column: 'Supported Glyphs'
-			stencil: [ :each | 
-				self flag: #TODO.	"Async fetch"
-				BlTextElement text: 42 asRopedText ];
+		column: 'Defined Characters'
+			text: [ :each | (BlFont new familyName: (each first ifEmpty: [ each third ])) codePointsDefinedInFont size ];
 		column: 'File'
 			text: #second
 			spawn: [ :each | each second asFileReference ];
@@ -227,8 +227,8 @@ BlFont >> gtSpotterUnicodeCharacterDatabaseFor: aSearch [
 BlFont >> gtSupportedCharactersFor: aView [
 	<gtView>
 	^ aView explicit
-		title: 'Supported Characters';
-		stencil: [ | aCharacterStream ascendingCodePoints  glyphElemenDimension listElement  |
+		title: 'Defined Characters';
+		stencil: [ | aCharacterStream ascendingCodePoints glyphElemenDimension listElement |
 			ascendingCodePoints := self codePointsDefinedInFont.
 			aCharacterStream := ascendingCodePoints asAsyncStream.
 			glyphElemenDimension := 50.
@@ -255,8 +255,6 @@ BlFont >> gtSupportedCharactersFor: aView [
 								preloadAmount: 50;
 								stream: aCharacterStream;
 								yourself);
-						stencil: #yourself;
-						when: BrItemsProviderDoneEvent do: [ :anEvent | self inform: 'All Glyphs have been fetched' ] ]
-						asBlTask.
+						stencil: #yourself ] asBlTask.
 			listElement ]
 ]

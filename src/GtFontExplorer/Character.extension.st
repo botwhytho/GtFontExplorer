@@ -26,12 +26,36 @@ Character >> glyphPreviewInFont: aString [
 ]
 
 { #category : #'*GtFontExplorer' }
-Character >> gtLargePreviewFor: aView [
+Character >> gtLargePreviewFor: aView context: aContext [
 	<gtView>
+	| font |
+	aContext navigation previousContext object
+		in: [ :anObject | font := (anObject isKindOf: BlFont) ifTrue: [ anObject ] ifFalse: [ nil ] ].
 	^ aView textEditor
 		title: 'Large Preview';
 		priority: 15;
-		glamorousCodeFontAndSize;
+		in: [ :editor | 
+			font
+				ifNil: [ editor glamorousCodeFontAndSize ]
+				ifNotNil: [ editor fontName: font familyName ].
+			editor ];
 		fontSize: 500;
+		text: [ self ]
+]
+
+{ #category : #'*GtFontExplorer' }
+Character >> gtPreviewInFontFor: aView context: aContext [
+	<gtView>
+	| font |
+	aContext navigation previousContext object
+		in: [ :anObject | 
+			(anObject isKindOf: BlFont)
+				ifTrue: [ font := anObject ]
+				ifFalse: [ ^ aView empty ] ].
+	^ aView textEditor
+		title: 'Font Preview';
+		priority: 5;
+		fontName: font familyName;
+		fontSize: 30;
 		text: [ self ]
 ]
