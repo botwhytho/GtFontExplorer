@@ -170,11 +170,22 @@ BlFont class >> gtFontsInSystemFor: aView [
 				tooltip: 'Search Fonts';
 				label: 'Fonts';
 				hidePreview;
-				valuable: [ fonts collect: [ :each | (each first ifEmpty: [ each third ]) -> each second ] ];
-				actOn: [ :anActOnEvent :anItem :aBrButton | 
-					anActOnEvent beActed.
-					aBrButton phlow spawnObject: (BlFont new familyName: anItem key).
-					aBrButton fireEvent: BrDropdownHideWish new ];
+				object: fonts;
+				objectActOn: [ :anActOnEvent :anItem :theButton | 
+						| target |
+						target := anActOnEvent objectToSend.
+						(target isKindOf: OrderedCollection) 
+							ifTrue: [ 
+								| columnedList |
+						
+								columnedList := theButton phlow viewContent 
+									allChildrenBreadthFirstDetect: [ :child | 
+										child isKindOf:  BrColumnedList ] 
+									ifFound: [ :child | child ].
+								columnedList scrollToItem: target.
+								columnedList selectOne: (columnedList items indexOf: target).
+								
+								anActOnEvent beActed ] ];
 				create ]
 ]
 
