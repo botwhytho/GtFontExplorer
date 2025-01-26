@@ -93,11 +93,23 @@ Character >> gtSupportedFontsFor: aView [
 								grid
 									addChildren: (someFonts collect: [ :aFont | self glyphPreviewInFont: aFont spawnFont: true ]).
 								grid ] asAsyncFuture asAsyncStream ]) asAsyncStream flatten.
+					aFontStream := aFontStream terminatable.
+					listElement userData at: #stream put: aFontStream.
 					listElement
 						itemsProvider: (BrStreamItemsProvider new
 								preloadAmount: 50;
 								stream: aFontStream;
 								yourself);
 						stencil: #yourself ] asBlTask.
-			listElement ]
+			listElement ];
+		actionButtonIcon: BrGlamorousVectorIcons stop
+			tooltip: 'Stop loading more fonts'
+			action: [ :aButton :aBrTab :aBrToggleActivatedEvent | (aBrTab viewContentElement userData at: #stream) terminate ];
+		actionButtonIcon: BrGlamorousVectorIcons refresh
+			tooltip: 'Reload view'
+			action: [ :aBrButton :aBrTab :aBrButtonModel :aBlClickEvent | 
+				aBlClickEvent consumed: true.
+				(aBrTab viewContentElement userData at: #stream) terminate.
+				(self gtSupportedFontsFor: GtPhlowEmptyView new)
+					updateContent: aBrTab viewContentElement ]
 ]
