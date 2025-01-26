@@ -172,15 +172,28 @@ BlFont class >> gtEmojisFor: aView [
 									addChildren: (decimalCodePoints
 											collect: [ :aDecimalCodePoint | 
 												(UnicodeCharacterData database at: aDecimalCodePoint) character
-													glyphPreviewInFont: 'Source Sans Pro' spawnFont: false ]).
+													glyphPreviewInFont: 'Source Sans Pro'
+													spawnFont: false ]).
 								grid ] asAsyncFuture asAsyncStream ]) asAsyncStream flatten.
+					aCharacterStream := aCharacterStream terminatable.
+					listElement userData at: #stream put: aCharacterStream.
 					listElement
 						itemsProvider: (BrStreamItemsProvider new
 								preloadAmount: 50;
 								stream: aCharacterStream;
 								yourself);
-						stencil: #yourself ] asBlTask.
-			listElement ]
+						stencil: #yourself ] asBlTask..
+			listElement ];
+		actionButtonIcon: BrGlamorousVectorIcons stop
+			tooltip: 'Stop loading more characters'
+			action: [ :aButton :aBrTab :aBrToggleActivatedEvent | (aBrTab viewContentElement userData at: #stream) terminate ];
+		actionButtonIcon: BrGlamorousVectorIcons refresh
+			tooltip: 'Reload view'
+			action: [ :aBrButton :aBrTab :aBrButtonModel :aBlClickEvent | 
+				aBlClickEvent consumed: true.
+				(aBrTab viewContentElement userData at: #stream) terminate.
+				(self gtEmojisFor: GtPhlowEmptyView new)
+					updateContent: aBrTab viewContentElement ]
 ]
 
 { #category : #'*GtFontExplorer' }
