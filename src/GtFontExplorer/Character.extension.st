@@ -1,6 +1,46 @@
 Extension { #name : #Character }
 
 { #category : #'*GtFontExplorer' }
+Character >> allFontsForCharacter [
+	^ (self getAllSystemFontsForCharacter , self getAllGtFontsForCharacter) sorted
+]
+
+{ #category : #'*GtFontExplorer' }
+Character >> getAllGtFontsForCharacter [
+	^ (GtExternalProcessBuilder new
+		command: 'fc-scan';
+		args: {'--format=%{fullname}|%{family}\n'.
+				':charset='
+					, (String
+							streamContents: [ :stream | 
+								self codePoint
+									printOn: stream
+									base: 16
+									nDigits: 4 ]).
+				FileLocator imageDirectory asAbsolute pathString};
+		pipeStdout;
+		pipeStderr;
+		spawn) waitWithOutput stdout lines
+]
+
+{ #category : #'*GtFontExplorer' }
+Character >> getAllSystemFontsForCharacter [
+	^ (GtExternalProcessBuilder new
+		command: 'fc-list';
+		args: {'--format=%{fullname}|%{family}\n'.
+				':charset='
+					, (String
+							streamContents: [ :stream | 
+								self codePoint
+									printOn: stream
+									base: 16
+									nDigits: 4 ])};
+		pipeStdout;
+		pipeStderr;
+		spawn) waitWithOutput stdout lines
+]
+
+{ #category : #'*GtFontExplorer' }
 Character >> glyphPreviewInFont: aString spawnFont: aBoolean [
 	^ BrFrame new
 		size: 50 @ 50;
@@ -67,7 +107,7 @@ Character >> gtPreviewInFontFor: aView context: aContext [
 Character >> gtSupportedFontsFor: aView [
 	<gtView>
 	| allFonts |
-	allFonts := (self allSuportedFontsForCharacter
+	allFonts := (self allFontsForCharacter
 			collect: [ :each | 
 				| split |
 				split := each splitOn: '|'.
