@@ -1,6 +1,16 @@
 Extension { #name : #BlFont }
 
 { #category : #'*GtFontExplorer' }
+BlFont class >> allFontsSorted [
+	^ (self fontsInSystem , self fontsInGtDirectory
+		collect: [ :each | each splitOn: '|' ])
+		sorted: [ :a :b | 
+			a first
+				ifEmpty: [ b first ifEmpty: [ a second < b second ] ifNotEmpty: [ false ] ]
+				ifNotEmpty: [ a first < b first ] ]
+]
+
+{ #category : #'*GtFontExplorer' }
 BlFont >> codePointsDefinedInFont [
 
 "^ OSPlatform current isLinux
@@ -20,20 +30,38 @@ BlFont >> codePointsDefinedInFont [
 ]
 
 { #category : #'*GtFontExplorer' }
+BlFont class >> fontsInGtDirectory [
+	^ OSPlatform current isLinux
+		ifTrue: [ self getAllGtFonts ]
+		ifFalse: [ #() ]
+]
+
+{ #category : #'*GtFontExplorer' }
 BlFont class >> fontsInSystem [
 	^ OSPlatform current isLinux
-		ifTrue: [ (GtExternalProcessBuilder new
-				command: 'fc-list';
-				pipeStdout;
-				pipeStderr;
-				spawn) waitWithOutput stdout lines
-				collect: [ :each | 
-					((each splitOn: $:) collect: #trimBoth)
-						in: [ :fields | 
-							{'file' -> fields first.
-								'name' -> fields second.
-								'style' -> fields third} asDictionary ] ] ]
+		ifTrue: [ self getAllSystemFonts ]
 		ifFalse: [ #() ]
+]
+
+{ #category : #'*GtFontExplorer' }
+BlFont class >> getAllGtFonts [
+	^ (GtExternalProcessBuilder new
+		command: 'fc-scan';
+		args: {'--format=%{fullname}|%{file}\n'.
+				'.' asFileReference asAbsolute pathString};
+		pipeStdout;
+		pipeStderr;
+		spawn) waitWithOutput stdout lines
+]
+
+{ #category : #'*GtFontExplorer' }
+BlFont class >> getAllSystemFonts [
+	^ (GtExternalProcessBuilder new
+		command: 'fc-list';
+		args: {'--format=%{fullname}|%{file}\n'};
+		pipeStdout;
+		pipeStderr;
+		spawn) waitWithOutput stdout lines
 ]
 
 { #category : #'*GtFontExplorer' }
@@ -106,20 +134,26 @@ BlFont class >> gtFontsInSystemFor: aView [
 	<gtClassView>
 	<gtView>
 	| fonts |
-	fonts := self fontsInSystem.
+	fonts := self allFontsSorted.
 	^ aView columnedList
 		title: 'Fonts In System (' , fonts size asString , ')';
 		priority: 1;
 		items: fonts;
-		column: 'Font Name' text: [ :each | each at: 'name' ];
-		column: 'File' text: [ :each | each at: 'file' ];
-		send: [ :each | self new familyName: (each at: 'name') ];
+		column: 'Font Name' text: #first;
+		column: 'Supported Glyphs'
+			stencil: [ :each | 
+				self flag: #TODO.	"Async fetch"
+				BlTextElement text: 42 asRopedText ];
+		column: 'File'
+			text: #second
+			spawn: [ :each | each second asFileReference ];
+		send: [ :each | self new familyName: each first ];
 		actionStencil: [ :aButton :aBrTab | 
 			GtSpotterDropdownButtonStencil new
 				tooltip: 'Search Fonts';
 				label: 'Fonts';
 				hidePreview;
-				valuable: [ fonts collect: [ :each | (each at: 'name') -> (each at: 'file') ] ];
+				valuable: [ fonts collect: [ :each | each first -> each second ] ];
 				actOn: [ :anActOnEvent :anItem :aBrButton | 
 					anActOnEvent beActed.
 					aBrButton phlow spawnObject: (BlFont new familyName: anItem key).
