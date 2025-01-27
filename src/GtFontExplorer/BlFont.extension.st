@@ -18,6 +18,7 @@ BlFont class >> allFontsSorted [
 { #category : #'*GtFontExplorer' }
 BlFont >> codePointsDefinedInFont [
 	| charsets codepoints font output |
+	self flag: #TODO. "Fix logic here. We already have charsets, don't need to query again in most situations. Issue below is that `familyName` is empty for some fonts so need to go back to fonts collection"
 	font := self class allFontsSorted
 			detect: [ :each | (each first ifEmpty: [ each third ]) = self familyName ]
 			ifFound: #second
@@ -288,6 +289,25 @@ nopqrstuvwxyz
 1234567890' asRopedText.
 			(self fontSize: 80) applyOnText: aText.
 			aText ]
+]
+
+{ #category : #'*GtFontExplorer' }
+BlFont >> gtPreviewTextUsingFontFor: anAction [
+	<gtAction>
+	^ anAction dropdown
+		label: 'Preview Text Using Font';
+		content: [ :aBrButton :aBrTab :aBrButtonModel :aBlClickEvent | 
+			BrFrame new fitContent
+				margin: (BlInsets all: 15);
+				addChild: (BrEditableLabel new
+						aptitude: BrGlamorousEditableLabelAptitude;
+						text: 'Test String';
+						when: BrEditorAcceptWish
+							do: [ :aWish | 
+								aWish currentTarget fireEvent: BrDropdownHideWish new.
+								aBrButton phlow spawnObject: aWish text asString ];
+						when: BrEditorCancelWish
+							do: [ :aWish | aWish currentTarget fireEvent: BrDropdownHideWish new ]) ]
 ]
 
 { #category : #'*GtFontExplorer' }
