@@ -121,6 +121,9 @@ Character class >> gtSpotterUnicodeCharacterDatabaseFor: aSearch [
 Character >> gtSupportedFontsFor: aView [
 	<gtView>
 	| allFonts |
+	(OSPlatform current isWindows not
+		and: [ ([ GtOsSystemInfo current findExecutable: 'fc-list' ] on: Error do: [ nil ])
+				isNotNil ]) ifFalse: [ ^ aView empty ].
 	allFonts := (self allFontsForCharacter
 			collect: [ :each | 
 				| split |

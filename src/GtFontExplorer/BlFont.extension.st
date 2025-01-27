@@ -48,16 +48,16 @@ BlFont >> codePointsDefinedInFont [
 
 { #category : #'*GtFontExplorer' }
 BlFont class >> fontsInGtDirectory [
-	^ OSPlatform current isLinux
-		ifTrue: [ self getAllGtFonts ]
-		ifFalse: [ #() ]
+	^ (OSPlatform current isWindows not
+		and: [ ([ GtOsSystemInfo current findExecutable: 'fc-list' ] on: Error do: [ nil ])
+				isNotNil ]) ifTrue: [ self getAllGtFonts ] ifFalse: [ #() ]
 ]
 
 { #category : #'*GtFontExplorer' }
 BlFont class >> fontsInSystem [
-	^ OSPlatform current isLinux
-		ifTrue: [ self getAllSystemFonts ]
-		ifFalse: [ #() ]
+	^ (OSPlatform current isWindows not
+		and: [ ([ GtOsSystemInfo current findExecutable: 'fc-list' ] on: Error do: [ nil ])
+				isNotNil ]) ifTrue: [ self getAllSystemFonts ] ifFalse: [ #() ]
 ]
 
 { #category : #'*GtFontExplorer' }
@@ -92,6 +92,9 @@ BlFont >> gtCopyFontNameFor: anAction [
 { #category : #'*GtFontExplorer' }
 BlFont >> gtDefinedCharactersFor: aView [
 	<gtView>
+	(OSPlatform current isWindows not
+		and: [ ([ GtOsSystemInfo current findExecutable: 'fc-list' ] on: Error do: [ nil ])
+				isNotNil ]) ifFalse: [ ^ aView empty ].
 	^ aView explicit
 		title: 'Defined Characters';
 		stencil: [ | aCharacterStream ascendingCodePoints glyphElemenDimension listElement |
@@ -140,8 +143,11 @@ BlFont >> gtDefinedCharactersFor: aView [
 
 { #category : #'*GtFontExplorer' }
 BlFont >> gtDetailedInfoFor: aView [
-	"<gtView>"
-	self flag: #TODO. "Do we need this? Need to clean this up more and take into account fonts in GT directory and how to get to proper font file"
+	<gtView>
+	(OSPlatform current isWindows not
+		and: [ ([ GtOsSystemInfo current findExecutable: 'fc-list' ] on: Error do: [ nil ])
+				isNotNil ]) ifFalse: [ ^ aView empty ].
+	self flag: #TODO. "Fix formatting. May not work correctly for all fonts"
 	^ ((OSPlatform current isLinux
 		ifTrue: [ | details output |
 			output := (GtExternalProcessBuilder new
@@ -159,7 +165,7 @@ BlFont >> gtDetailedInfoFor: aView [
 			{'Info' -> output first} , details flatten ]
 		ifFalse: [ {'Info' -> 'Not available in this OS'} ]) asOrderedDictionary
 		gtItemsFor: aView)
-		title: 'Detailed Info';
+		title: 'Detailed Info (fc-list)';
 		priority: 8
 ]
 
@@ -222,6 +228,9 @@ BlFont class >> gtFontsInSystemFor: aView [
 	<gtClassView>
 	<gtView>
 	| fonts |
+	(OSPlatform current isWindows not
+		and: [ ([ GtOsSystemInfo current findExecutable: 'fc-list' ] on: Error do: [ nil ])
+				isNotNil ]) ifFalse: [ ^ aView empty ].
 	fonts := self allFontsSorted.
 	^ aView columnedList
 		title: 'Fonts In System (' , fonts size asString , ')';
@@ -229,7 +238,9 @@ BlFont class >> gtFontsInSystemFor: aView [
 		items: fonts;
 		column: 'Font Name' text: [ :each | each first ifEmpty: [ each third ] ];
 		column: 'Defined Characters'
-			text: [ :each | (BlFont new familyName: (each first ifEmpty: [ each third ])) codePointsDefinedInFont size ];
+			text: [ :each | 
+				(BlFont new familyName: (each first ifEmpty: [ each third ]))
+					codePointsDefinedInFont size ];
 		column: 'File'
 			text: #second
 			spawn: [ :each | each second asFileReference ];
@@ -241,20 +252,17 @@ BlFont class >> gtFontsInSystemFor: aView [
 				hidePreview;
 				object: fonts;
 				objectActOn: [ :anActOnEvent :anItem :theButton | 
-						| target |
-						target := anActOnEvent objectToSend.
-						(target isKindOf: OrderedCollection) 
-							ifTrue: [ 
-								| columnedList |
-						
-								columnedList := theButton phlow viewContent 
-									allChildrenBreadthFirstDetect: [ :child | 
-										child isKindOf:  BrColumnedList ] 
+					| target |
+					target := anActOnEvent objectToSend.
+					(target isKindOf: OrderedCollection)
+						ifTrue: [ | columnedList |
+							columnedList := theButton phlow viewContent
+									allChildrenBreadthFirstDetect: [ :child | child isKindOf: BrColumnedList ]
 									ifFound: [ :child | child ].
-								columnedList scrollToItem: target.
-								columnedList selectOne: (columnedList items indexOf: target).
-								
-								anActOnEvent beActed ] ];
+							columnedList scrollToItem: target.
+							columnedList selectOne: (columnedList items indexOf: target).
+
+							anActOnEvent beActed ] ];
 				create ]
 ]
 
@@ -318,8 +326,12 @@ BlFont >> printOn: aStream [
 	super printOn: aStream.
 	aStream
 		nextPutAll: ' (';
-		nextPutAll: self familyName;
-		nextPutAll: ' [';
-		nextPutAll: self codePointsDefinedInFont size asString;
-		nextPutAll: ' glyphs])'
+		nextPutAll: self familyName.
+	(OSPlatform current isWindows not
+		and: [ ([ GtOsSystemInfo current findExecutable: 'fc-list' ] on: Error do: [ nil ])
+				isNotNil ])
+		ifTrue: [ aStream
+				nextPutAll: ' [';
+				nextPutAll: self codePointsDefinedInFont size asString;
+				nextPutAll: ' glyphs])' ]
 ]
