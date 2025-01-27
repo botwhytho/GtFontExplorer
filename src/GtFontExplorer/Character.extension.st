@@ -60,8 +60,10 @@ Character >> glyphPreviewInFont: aString spawnFont: aBoolean [
 					do: [ :aBlClickEvent | 
 						aBlClickEvent consumed: true.
 						aBoolean
-							ifTrue: [ aBlClickEvent currentTarget phlow
-									spawnObject: (BlFont new familyName: aString) ]
+							ifTrue: [ aBlClickEvent modifiers = BlKeyModifiers alt
+									ifTrue: [ GtClipboard clipboardText: aBlClickEvent currentTarget text asString ]
+									ifFalse: [ aBlClickEvent currentTarget phlow
+											spawnObject: (BlFont new familyName: aString) ] ]
 							ifFalse: [ aBlClickEvent modifiers = BlKeyModifiers alt
 									ifTrue: [ GtClipboard clipboardText: aBlClickEvent currentTarget text asString ].
 								aBlClickEvent modifiers = BlKeyModifiers new

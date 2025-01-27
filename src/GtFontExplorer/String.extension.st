@@ -1,7 +1,7 @@
-Extension { #name : #ByteString }
+Extension { #name : #String }
 
 { #category : #'*GtFontExplorer' }
-ByteString >> gtPreviewInFontFor: aView context: aContext [
+String >> gtPreviewInFontFor: aView context: aContext [
 	<gtView>
 	| font |
 	aContext navigation previousContext object
