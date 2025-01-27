@@ -302,6 +302,9 @@ BlFont >> gtPreviewTextUsingFontFor: anAction [
 				addChild: (BrEditableLabel new
 						aptitude: BrGlamorousEditableLabelAptitude;
 						text: 'Test String';
+						switchToEditor;
+						when: BlElementAddedToSceneGraphEvent
+							do: [ :anEvent | anEvent currentTarget requestFocus ];
 						when: BrEditorAcceptWish
 							do: [ :aWish | 
 								aWish currentTarget fireEvent: BrDropdownHideWish new.
