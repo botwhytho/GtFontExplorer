@@ -154,7 +154,7 @@ Character >> gtSupportedFontsFor: aView [
 					listElement userData at: #stream put: aFontStream.
 					listElement
 						itemsProvider: (BrStreamItemsProvider new
-								preloadAmount: 50;
+								preloadAmount: (listElement height // glyphElemenDimension) / 2;
 								stream: aFontStream;
 								yourself);
 						stencil: #yourself ] asBlTask.
