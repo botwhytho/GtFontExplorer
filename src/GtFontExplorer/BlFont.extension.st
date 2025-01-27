@@ -200,7 +200,7 @@ BlFont class >> gtEmojisFor: aView [
 					listElement userData at: #stream put: aCharacterStream.
 					listElement
 						itemsProvider: (BrStreamItemsProvider new
-								preloadAmount: 50;
+								preloadAmount: (listElement height // glyphElemenDimension) / 2;
 								stream: aCharacterStream;
 								yourself);
 						stencil: #yourself ] asBlTask..
