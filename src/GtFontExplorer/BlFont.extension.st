@@ -314,18 +314,6 @@ BlFont >> gtPreviewTextUsingFontFor: anAction [
 ]
 
 { #category : #'*GtFontExplorer' }
-BlFont >> gtSpotterUnicodeCharacterDatabaseFor: aSearch [
-	<gtSearch>
-	^ aSearch list
-		priority: 10;
-		title: 'Unicode character database';
-		items: [ UnicodeCharacterData database values sorted ];
-		itemName: [ :each | each printString ];
-		send: [ :aRawObject :aStep :thisSearch | aRawObject character ];
-		filterBySubstring
-]
-
-{ #category : #'*GtFontExplorer' }
 BlFont >> printOn: aStream [
 	super printOn: aStream.
 	aStream

@@ -106,6 +106,18 @@ Character >> gtPreviewInFontFor: aView context: aContext [
 ]
 
 { #category : #'*GtFontExplorer' }
+Character class >> gtSpotterUnicodeCharacterDatabaseFor: aSearch [
+	<gtSearch>
+	^ aSearch list
+		priority: 10;
+		title: 'Unicode character database';
+		items: [ UnicodeCharacterData database values sorted ];
+		itemName: [ :each | each character asString , '|' ,each printString ];
+		send: [ :aRawObject :aStep :thisSearch | aRawObject character ];
+		filterBySubstring
+]
+
+{ #category : #'*GtFontExplorer' }
 Character >> gtSupportedFontsFor: aView [
 	<gtView>
 	| allFonts |
