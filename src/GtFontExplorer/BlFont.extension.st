@@ -82,6 +82,57 @@ BlFont class >> getAllSystemFonts [
 ]
 
 { #category : #'*GtFontExplorer' }
+BlFont >> gtAsyncDefinedCharactersFor: aView [
+	"<gtView>"
+	self flag: #SLOW. "Keeping this here but it just looks better and is faster to load by row than all these async loads of individual elements. Benchmark to find out"
+	(OSPlatform current isWindows not
+		and: [ ([ GtOsSystemInfo current findExecutable: 'fc-list' ] on: Error do: [ nil ])
+				isNotNil ]) ifFalse: [ ^ aView empty ].
+	^ aView explicit
+		title: 'Defined Characters';
+		stencil: [ | aCharacterStream ascendingCodePoints glyphElemenDimension listElement |
+			glyphElemenDimension := 50.
+			ascendingCodePoints := self codePointsDefinedInFont.
+			aCharacterStream := ascendingCodePoints asAsyncStream.
+			listElement := BrSimpleList new
+					matchParent;
+					itemStencil: [ BrHorizontalPane new hMatchParent vFitContent ];
+					itemDataBinder: [ :eachRow :eachChunk | 
+						eachRow removeChildren.
+						eachChunk do: #removeFromParent.
+						eachRow addChildren: eachChunk ].
+
+			aCharacterStream := aCharacterStream
+					collect: [ :aDecimalCodePoint | 
+						BrAsyncWidget new
+							size: glyphElemenDimension @ glyphElemenDimension;
+							border: (BlBorder paint: Color veryLightGray width: 1);
+							aptitude: BrGlamorousFocusableShadowAptitude;
+							pendingBlock: [ :_ | BlElement new ];
+							stencil: [ (Character value: aDecimalCodePoint)
+									glyphPreviewInFont: self familyName
+									spawnFont: false ] ].
+			aCharacterStream := aCharacterStream terminatable.
+			listElement userData at: #stream put: aCharacterStream.
+			listElement
+				enqueueTask: [ listElement
+						itemsProvider: (BrStreamItemsProvider new
+								preloadAmount: listElement height // glyphElemenDimension / 2;
+								stream: (aCharacterStream chunks: listElement width // glyphElemenDimension)) ]
+						asBlTask ];
+		actionButtonIcon: BrGlamorousVectorIcons stop
+			tooltip: 'Stop loading more characters'
+			action: [ :aButton :aBrTab :aBrToggleActivatedEvent | (aBrTab viewContentElement userData at: #stream) terminate ];
+		actionButtonIcon: BrGlamorousVectorIcons refresh
+			tooltip: 'Reload view'
+			action: [ :aBrButton :aBrTab :aBrButtonModel :aBlClickEvent | 
+				aBlClickEvent consumed: true.
+				(aBrTab viewContentElement userData at: #stream) terminate.
+				(self gtDefinedCharactersFor: GtPhlowEmptyView new)
+					updateContent: aBrTab viewContentElement ]
+]
+
+{ #category : #'*GtFontExplorer' }
 BlFont >> gtCopyFontNameFor: anAction [
 	<gtAction>
 	^ anAction button
@@ -98,37 +149,30 @@ BlFont >> gtDefinedCharactersFor: aView [
 	^ aView explicit
 		title: 'Defined Characters';
 		stencil: [ | aCharacterStream ascendingCodePoints glyphElemenDimension listElement |
+			glyphElemenDimension := 50.
 			ascendingCodePoints := self codePointsDefinedInFont.
 			aCharacterStream := ascendingCodePoints asAsyncStream.
-			glyphElemenDimension := 50.
-			listElement := BrSimpleList new matchParent.
+			listElement := BrSimpleList new
+					matchParent;
+					itemStencil: [ BrHorizontalPane new hMatchParent vFitContent ];
+					itemDataBinder: [ :eachRow :eachChunk | 
+						eachRow removeChildren.
+						eachChunk do: #removeFromParent.
+						eachRow addChildren: eachChunk ].
+
+			aCharacterStream := aCharacterStream
+					collect: [ :aDecimalCodePoint | 
+						(Character value: aDecimalCodePoint)
+							glyphPreviewInFont: self familyName
+							spawnFont: false ].
+			aCharacterStream := aCharacterStream terminatable.
+			listElement userData at: #stream put: aCharacterStream.
 			listElement
-				enqueueTask: [ | glyphsPerRow |
-					glyphsPerRow := listElement width // glyphElemenDimension.
-					aCharacterStream := aCharacterStream chunks: glyphsPerRow.
-					aCharacterStream := (aCharacterStream
-							collect: [ :decimalCodePoints | 
-								[ | grid |
-								grid := BrHorizontalGrid new
-										height: glyphElemenDimension;
-										hFitContent;
-										columnCount: glyphsPerRow.
-								grid
-									addChildren: (decimalCodePoints
-											collect: [ :aDecimalCodePoint | 
-												(Character value: aDecimalCodePoint)
-													glyphPreviewInFont: self familyName
-													spawnFont: false ]).
-								grid ] asAsyncFuture asAsyncStream ]) asAsyncStream flatten.
-					aCharacterStream := aCharacterStream terminatable.
-					listElement userData at: #stream put: aCharacterStream.
-					listElement
+				enqueueTask: [ listElement
 						itemsProvider: (BrStreamItemsProvider new
-								preloadAmount: (listElement height // glyphElemenDimension) / 2;
-								stream: aCharacterStream;
-								yourself);
-						stencil: #yourself ] asBlTask.
-			listElement ];
+								preloadAmount: listElement height // glyphElemenDimension / 2;
+								stream: (aCharacterStream chunks: listElement width // glyphElemenDimension)) ]
+						asBlTask ];
 		actionButtonIcon: BrGlamorousVectorIcons stop
 			tooltip: 'Stop loading more characters'
 			action: [ :aButton :aBrTab :aBrToggleActivatedEvent | (aBrTab viewContentElement userData at: #stream) terminate ];
