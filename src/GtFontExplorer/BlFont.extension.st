@@ -311,21 +311,6 @@ BlFont class >> gtFontsInSystemFor: aView [
 ]
 
 { #category : #'*GtFontExplorer' }
-BlFont >> gtInfoFor: aView [
-	<gtView>
-
-	^ ({
-		#'Family name' -> self familyName.
-		#Size -> self fontSize.
-		#Slant -> (('{1} ({2})') format: { self fontSlant name . self fontSlant value }).
-		#Stretch -> (('{1} ({2})') format: { self fontStretch name . self fontStretch value }).
-		#Weight -> (('{1} ({2})') format: { self fontWeight name . self fontWeight value }).
-	 } asOrderedDictionary gtItemsFor: aView)
-			title: 'Info';
-			priority: 7
-]
-
-{ #category : #'*GtFontExplorer' }
 BlFont >> gtPreviewFor: aView [
 	<gtView>
 	
