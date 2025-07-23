@@ -253,7 +253,7 @@ BlFont class >> gtEmojisFor: aView [
 								preloadAmount: (listElement height // glyphElemenDimension) / 2;
 								stream: aCharacterStream;
 								yourself);
-						stencil: #yourself ] asBlTask..
+						stencil: #yourself ] asBlTask.
 			listElement ];
 		actionButtonIcon: BrGlamorousVectorIcons stop
 			tooltip: 'Stop loading more characters'
